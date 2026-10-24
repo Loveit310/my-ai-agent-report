@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Agent 使用报告 · xmc</title>
+<style>
+  :root{
+    --mist:#f4f8fc;
+    --line:#e2ecf5;
+    --ink:#22303d;
+    --gray:#6b7d8c;
+    --sky:#7fb3d5;
+    --soft:#bcd8ec;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{
+    font-family:-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;
+    background:#fff;color:var(--ink);line-height:1.85;
+    font-size:15px;
+  }
+  .wrap{max-width:760px;margin:0 auto;padding:0 28px;}
+
+  /* 顶部导航 */
+  nav{
+    position:sticky;top:0;z-index:99;
+    background:rgba(255,255,255,.9);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  nav .wrap{display:flex;justify-content:space-between;align-items:center;height:58px;}
+  nav .logo{font-size:14px;letter-spacing:.5px;font-weight:600;}
+  nav ul{display:flex;gap:24px;list-style:none;}
+  nav a{color:var(--gray);text-decoration:none;font-size:13.5px;transition:.2s;}
+  nav a:hover{color:var(--sky);}
+
+  /* Hero */
+  header{padding:90px 0 60px;text-align:left;}
+  .kicker{
+    font-size:11px;letter-spacing:3px;color:var(--sky);
+    text-transform:uppercase;margin-bottom:18px;font-weight:600;
+  }
+  h1{font-size:44px;font-weight:600;letter-spacing:-.5px;line-height:1.25;}
+  h1 .thin{color:var(--soft);}
+  header p{max-width:480px;color:var(--gray);margin-top:22px;font-size:15px;}
+
+  /* 分隔小节标题 */
+  section{padding:64px 0;border-top:1px solid var(--line);}
+  .sec-tag{font-size:11px;letter-spacing:3px;color:var(--sky);font-weight:600;margin-bottom:10px;}
+  h2{font-size:26px;font-weight:600;margin-bottom:10px;letter-spacing:-.3px;}
+  .sec-note{color:var(--gray);font-size:14px;margin-bottom:36px;}
+
+  /* 单工具信息卡 */
+  .tool-card{
+    background:var(--mist);border-radius:20px;padding:34px 32px;
+    margin-bottom:20px;
+  }
+  .tool-card .head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;}
+  .tool-card h3{font-size:24px;font-weight:600;}
+  .pill{
+    font-size:12px;background:#fff;border:1px solid var(--line);
+    border-radius:20px;padding:5px 14px;color:var(--gray);
+  }
+  .tool-card p{margin-top:14px;color:#4a5a68;font-size:14.5px;}
+
+  /* 优缺点双向 */
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:6px;}
+  .panel{
+    border:1px solid var(--line);border-radius:16px;padding:24px;
+    background:#fff;
+  }
+  .panel h4{font-size:14px;letter-spacing:1px;margin-bottom:16px;font-weight:600;}
+  .panel.plus h4{color:var(--sky);}
+  .panel.minus h4{color:#c99a8e;}
+  .panel ul{list-style:none;}
+  .panel li{
+    font-size:13.5px;color:#4a5a68;padding:10px 0 10px 18px;
+    position:relative;border-top:1px solid var(--line);
+  }
+  .panel li:first-child{border-top:none;}
+  .panel li::before{
+    content:"";position:absolute;left:0;top:19px;
+    width:6px;height:6px;border-radius:50%;
+  }
+  .panel.plus li::before{background:var(--sky);}
+  .panel.minus li::before{background:#e0b3a6;}
+
+  /* 时间线 */
+  .timeline{position:relative;padding-left:28px;}
+  .timeline::before{
+    content:"";position:absolute;left:5px;top:8px;bottom:8px;
+    width:1px;background:var(--line);
+  }
+  .step{position:relative;padding-bottom:30px;}
+  .step:last-child{padding-bottom:0;}
+  .step::before{
+    content:"";position:absolute;left:-28px;top:7px;
+    width:11px;height:11px;border-radius:50%;
+    background:#fff;border:2px solid var(--sky);
+  }
+  .step h4{font-size:15.5px;font-weight:600;margin-bottom:6px;}
+  .step p{font-size:13.5px;color:var(--gray);}
+
+  /* 反思条目 */
+  .thought{
+    background:var(--mist);border-radius:16px;padding:26px 28px;
+    margin-bottom:16px;
+  }
+  .thought h4{
+    font-size:15px;font-weight:600;margin-bottom:10px;
+    display:flex;align-items:center;gap:10px;
+  }
+  .thought h4 .dot{
+    width:8px;height:8px;border-radius:50%;background:var(--sky);
+    flex-shrink:0;
+  }
+  .thought p{font-size:14px;color:#4a5a68;}
+
+  /* 金句 */
+  .quote{
+    background:#fff;border:1px solid var(--line);
+    border-left:3px solid var(--sky);
+    border-radius:0 16px 16px 0;
+    padding:38px 36px;
+    font-size:19px;line-height:1.75;font-weight:500;
+    color:#38495a;
+  }
+
+  footer{
+    padding:40px 0 70px;border-top:1px solid var(--line);
+    font-size:12.5px;color:#b0bfcb;letter-spacing:.5px;
+  }
+
+  @media(max-width:600px){
+    h1{font-size:32px;}
+    .duo{grid-template-columns:1fr;}
+    nav ul{gap:16px;}
+    .wrap{padding:0 20px;}
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="logo">xmc · AI Agent Report</div>
+    <ul>
+      <li><a href="#tool">工具档案</a></li>
+      <li><a href="#exp">使用体验</a></li>
+      <li><a href="#flow">安装流程</a></li>
+      <li><a href="#think">一点反思</a></li>
+    </ul>
+  </div>
+</nav>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Personal Workflow · 2026</div>
+    <h1>AI Agent<br><span class="thin">使用报告</span></h1>
+    <p>记录我第一次安装并真正使用 AI Agent 的全过程——从工具选择，到实际体验，再到我对它的重新理解。</p>
+  </div>
+</header>
+
+<!-- 工具档案 -->
+<section id="tool">
+  <div class="wrap">
+    <div class="sec-tag">01 — Tool</div>
+    <h2>我选择了 WorkBuddy</h2>
+    <p class="sec-note">在可选的几个 Agent 中，我最终只安装了 WorkBuddy 一个。</p>
+
+    <div class="tool-card">
+      <div class="head">
+        <h3>WorkBuddy</h3>
+        <span class="pill">已安装 · 主要使用</span>
+      </div>
+      <p>选择它的原因很直接：安装门槛低、界面清晰，对于刚接触 AI Agent 的我来说，是最容易上手的一款。整个安装过程较为顺畅，没有遇到卡住的环节，很快就能进入实际对话。</p>
+    </div>
+  </div>
+</section>
+
+<!-- 使用体验 -->
+<section id="exp">
+  <div class="wrap">
+    <div class="sec-tag">02 — Experience</div>
+    <h2>使用过程中的真实感受</h2>
+    <p class="sec-note">用得越多，优点和不足就越清楚地浮现出来。</p>
+
+    <div class="duo">
+      <div class="panel plus">
+        <h4>让人满意的地方</h4>
+        <ul>
+          <li>安装流程顺畅，几乎没有配置成本</li>
+          <li>界面简洁，交互逻辑一目了然</li>
+          <li>对通用型、常规性任务响应稳定</li>
+          <li>上手门槛低，适合作为入门 Agent</li>
+        </ul>
+      </div>
+      <div class="panel minus">
+        <h4>有待改进的地方</h4>
+        <ul>
+          <li>思考过程偏慢，等待时间较长</li>
+          <li>思考内容的信息密度偏低，有效信息不多</li>
+          <li>面对偏冷门、专业度高的领域时针对性不足</li>
+          <li>回答偏差较大，需要人工反复校正</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 安装流程 -->
+<section id="flow">
+  <div class="wrap">
+    <div class="sec-tag">03 — Setup</div>
+    <h2>安装流程回顾</h2>
+    <p class="sec-note">整个过程比我预想的简单，几个步骤就完成了。</p>
+
+    <div class="timeline">
+      <div class="step">
+        <h4>获取安装包</h4>
+        <p>按照课程指引找到 WorkBuddy 的获取入口，下载对应版本。</p>
+      </div>
+      <div class="step">
+        <h4>完成安装</h4>
+        <p>运行安装程序，按默认选项逐步完成配置，没有出现报错。</p>
+      </div>
+      <div class="step">
+        <h4>登录与初始化</h4>
+        <p>登录账号，完成基础设置，进入主界面。</p>
+      </div>
+      <div class="step">
+        <h4>第一次对话</h4>
+        <p>尝试向它提出一个任务，确认 Agent 能够正常响应并给出结果。</p>
+      </div>
+      <div class="step">
+        <h4>投入使用</h4>
+        <p>开始在日常学习中实际调用，观察它在不同任务下的表现。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 反思 -->
+<section id="think">
+  <div class="wrap">
+    <div class="sec-tag">04 — Reflection</div>
+    <h2>一点反思</h2>
+    <p class="sec-note">用完之后，我对"什么是好用的 Agent"有了新的判断标准。</p>
+
+    <div class="thought">
+      <h4><span class="dot"></span>关于工具本身</h4>
+      <p>WorkBuddy 让我第一次直观感受到 Agent 与普通聊天机器人的区别——它不只是被动回答问题，而是会尝试拆解任务、给出步骤。但在偏门、专业度高的领域里，它的回答明显不够精准，这提醒我：任何工具都有能力边界，不能因为它"什么都能答"就默认它"什么都能答对"。</p>
+    </div>
+
+    <div class="thought">
+      <h4><span class="dot"></span>关于"慢"与"信息量"</h4>
+      <p>它对问题的思考过程偏慢，而且思考内容的信息密度不高，很多时候铺垫很长、有效信息却有限。这让我意识到，AI 的"思考展示"并不等于"思考深度"——等待很久，未必换来更好的结果。与其盲目等待，不如把问题拆得更具体，用更明确的输入去换取更针对性的输出。</p>
+    </div>
+
+    <div class="thought">
+      <h4><span class="dot"></span>关于人机分工</h4>
+      <p>这次经历让我更清楚：Agent 负责效率，人负责判断。它可以帮我快速起步、处理常规任务，但在涉及专业判断和准确性要求高的工作时，最终把关的仍然是我自己。把 AI 当成一个能力有限、需要引导的协作者，比把它当成万能答案，要务实得多。</p>
+    </div>
+
+    <div class="quote">
+      真正好用的 Agent，不只是"能回答问题"，而是在我熟悉与不熟悉的领域里，都能给出足够可靠、足够有针对性的回应。
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">© 2026 xmc · AI Agent 使用报告</div>
+</footer>
+
+</body>
+</html>
