@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>用一个隐藏层，学会 XOR · MLP 参数学习可视化</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --ink:#111111;
+    --ink-2:#4a4a4a;
+    --ink-3:#8a8a8a;
+    --line:#e6e6e6;
+    --accent:#c8452f;
+    --accent-soft:#f3e4df;
+    --green:#2f7d5c;
+    --green-soft:#e3efe9;
+    --code-bg:#141414;
+    --code-ink:#e8e8e8;
+    --card:#fafaf8;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Helvetica Neue","PingFang SC","Microsoft YaHei",-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    line-height:1.7;
+  }
+  .wrap{max-width:900px;margin:0 auto;padding:0 28px;}
+
+  /* 顶部导航 */
+  .topbar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:20px 0;font-size:12px;color:var(--ink-3);
+    letter-spacing:.06em;border-bottom:1px solid var(--line);
+  }
+  .topbar b{color:var(--ink);font-weight:600;}
+
+  /* Hero */
+  .hero{padding:64px 0 44px;border-bottom:1px solid var(--line);}
+  .eyebrow{
+    font-size:11px;letter-spacing:.18em;color:var(--accent);
+    font-weight:600;margin-bottom:22px;
+  }
+  .hero h1{
+    font-size:60px;line-height:1.1;font-weight:800;margin:0 0 22px;
+    letter-spacing:-.02em;
+  }
+  .hero p.lead{
+    font-size:15px;color:var(--ink-2);max-width:520px;margin:0 0 26px;
+  }
+  .chips{display:flex;gap:10px;flex-wrap:wrap;}
+  .chip{
+    border:1px solid var(--line);border-radius:99px;padding:6px 15px;
+    font-size:12px;color:var(--ink-2);background:#fff;
+  }
+
+  /* 章节 */
+  section{padding:56px 0;border-bottom:1px solid var(--line);}
+  .sec-head{display:flex;align-items:flex-start;gap:18px;margin-bottom:26px;}
+  .sec-num{
+    font-size:26px;font-weight:800;color:var(--accent);
+    line-height:1.1;letter-spacing:-.02em;min-width:42px;
+  }
+  .sec-head h2{font-size:26px;font-weight:700;margin:0 0 4px;letter-spacing:-.01em;}
+  .sec-head p{margin:0;font-size:13.5px;color:var(--ink-3);}
+
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+
+  .card{
+    background:var(--card);border:1px solid var(--line);
+    border-radius:12px;padding:20px;
+  }
+  .card h3{font-size:14px;margin:0 0 14px;font-weight:700;}
+  .card .note{font-size:12px;color:var(--ink-3);margin-top:12px;line-height:1.65;}
+
+  /* 网络图 */
+  .net-wrap{display:flex;justify-content:center;padding:6px 0 2px;}
+  .net-wrap svg{width:100%;height:auto;}
+
+  /* 预测表 */
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);}
+  th{font-size:11px;color:var(--ink-3);font-weight:600;letter-spacing:.06em;}
+  td.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;}
+  .ok{
+    display:inline-block;background:var(--green-soft);color:var(--green);
+    border-radius:99px;padding:2px 10px;font-size:11px;font-weight:600;
+  }
+  .bad{
+    display:inline-block;background:var(--accent-soft);color:var(--accent);
+    border-radius:99px;padding:2px 10px;font-size:11px;font-weight:600;
+  }
+
+  /* 决策边界 */
+  .canvas-box{
+    background:#fdfcfb;border:1px solid var(--line);border-radius:12px;
+    padding:16px;position:relative;
+  }
+  #boundary{width:100%;height:auto;display:block;border-radius:8px;}
+  .box-title{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-bottom:12px;font-size:13px;font-weight:600;
+  }
+  .btn{
+    border:none;background:var(--green);color:#fff;border-radius:7px;
+    padding:8px 16px;font-size:12.5px;font-weight:600;cursor:pointer;
+    font-family:inherit;transition:.15s;
+  }
+  .btn:hover{filter:brightness(1.08);}
+  .btn.ghost{background:#fff;color:var(--ink-2);border:1px solid var(--line);}
+  .btn.ghost:hover{border-color:var(--ink-3);filter:none;}
+  .legend{display:flex;gap:20px;font-size:12px;color:var(--ink-2);margin-top:14px;}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:1px;}
+
+  .slider-row{
+    display:flex;align-items:center;gap:14px;margin-top:18px;font-size:13px;
+  }
+  .slider-row label{min-width:70px;color:var(--ink-2);}
+  input[type=range]{
+    flex:1;-webkit-appearance:none;height:4px;border-radius:2px;
+    background:var(--line);outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+    background:var(--green);cursor:pointer;border:2px solid #fff;
+    box-shadow:0 0 0 1px var(--green);
+  }
+  .val{
+    font-family:ui-monospace,Menlo,Consolas,monospace;
+    font-size:12.5px;min-width:44px;text-align:right;
+  }
+
+  /* 代码 */
+  pre{
+    background:var(--code-bg);color:var(--code-ink);border-radius:12px;
+    padding:22px;font-size:12.5px;line-height:1.9;overflow-x:auto;
+    font-family:ui-monospace,Menlo,Consolas,monospace;margin:0;
+  }
+  pre .cm{color:#7d7d7d;}
+  pre .kw{color:#e0a06a;}
+  pre .fn{color:#8fc1e3;}
+
+  .checklist{list-style:none;padding:0;margin:0;}
+  .checklist li{
+    font-size:13px;color:var(--ink-2);padding:7px 0;display:flex;gap:9px;
+  }
+  .checklist li::before{content:"✓";color:var(--green);font-weight:700;}
+
+  .quote{
+    border-left:2px solid var(--accent);padding:2px 0 2px 16px;
+    font-size:12.5px;color:var(--ink-2);margin-top:18px;line-height:1.75;
+  }
+
+  /* 四步 */
+  .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;}
+  .step{
+    border:1px solid var(--line);border-radius:10px;padding:16px;background:#fff;
+  }
+  .step .idx{
+    width:26px;height:26px;border-radius:6px;background:var(--ink);color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;
+    font-weight:700;margin-bottom:10px;
+  }
+  .step h4{font-size:13px;margin:0 0 6px;font-weight:700;}
+  .step p{font-size:11.5px;color:var(--ink-3);margin:0;line-height:1.6;}
+
+  footer{
+    padding:26px 0 50px;display:flex;justify-content:space-between;
+    font-size:11.5px;color:var(--ink-3);align-items:center;
+  }
+
+  @media(max-width:760px){
+    .hero h1{font-size:38px;}
+    .grid-2,.steps{grid-template-columns:1fr;}
+    .steps{grid-template-columns:1fr 1fr;}
+    section{padding:40px 0;}
+    .wrap{padding:0 18px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <span><b>人工智能概论</b> · 第二次作业</span>
+    <span>MLP 参数学习 / 交互可视化</span>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">A SMALL NETWORK, A NONLINEAR BOUNDARY</div>
+    <h1>用一个隐藏层，<br>学会 XOR。</h1>
+    <p class="lead">
+      单条直线无法把 XOR 的两类点分开。加入两个隐藏节点后，网络可以组合出非线性决策边界；
+      通过反向传播，它会从预测误差中逐步调整参数。
+    </p>
+    <div class="chips">
+      <span class="chip">2 → 2 → 1</span>
+      <span class="chip">Sigmoid</span>
+      <span class="chip">Backpropagation</span>
+      <span class="chip">10,000 steps</span>
+    </div>
+  </div>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">01</div>
+      <div>
+        <h2>网络如何连接</h2>
+        <p>前向传播产生预测，反向传播根据误差更新权重与偏置。</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>一个简单的多层感知机</h3>
+        <div class="net-wrap">
+          <svg viewBox="0 0 340 200" role="img" aria-label="2-2-1 网络结构图">
+            <line x1="62" y1="60" x2="168" y2="55" stroke="#c8452f" stroke-width="1.4"/>
+            <line x1="62" y1="60" x2="168" y2="145" stroke="#c8452f" stroke-width="1.4"/>
+            <line x1="62" y1="140" x2="168" y2="55" stroke="#2f7d5c" stroke-width="1.4"/>
+            <line x1="62" y1="140" x2="168" y2="145" stroke="#2f7d5c" stroke-width="1.4"/>
+            <line x1="192" y1="55" x2="278" y2="100" stroke="#c8452f" stroke-width="1.4"/>
+            <line x1="192" y1="145" x2="278" y2="100" stroke="#2f7d5c" stroke-width="1.4"/>
+
+            <circle cx="50" cy="60" r="13" fill="#fff" stroke="#c8452f" stroke-width="1.6"/>
+            <text x="50" y="64" font-size="11" text-anchor="middle" font-family="monospace">x₁</text>
+            <circle cx="50" cy="140" r="13" fill="#fff" stroke="#c8452f" stroke-width="1.6"/>
+            <text x="50" y="144" font-size="11" text-anchor="middle" font-family="monospace">x₂</text>
+
+            <circle cx="180" cy="55" r="13" fill="#fff" stroke="#2f7d5c" stroke-width="1.6"/>
+            <text x="180" y="59" font-size="11" text-anchor="middle" font-family="monospace">h₁</text>
+            <circle cx="180" cy="145" r="13" fill="#fff" stroke="#2f7d5c" stroke-width="1.6"/>
+            <text x="180" y="149" font-size="11" text-anchor="middle" font-family="monospace">h₂</text>
+
+            <circle cx="291" cy="100" r="14" fill="#2f7d5c"/>
+            <text x="291" y="104" font-size="11" text-anchor="middle" font-family="monospace" fill="#fff">ŷ</text>
+
+            <text x="50" y="176" font-size="9.5" text-anchor="middle" fill="#8a8a8a">输入层</text>
+            <text x="180" y="176" font-size="9.5" text-anchor="middle" fill="#8a8a8a">隐藏层</text>
+            <text x="291" y="176" font-size="9.5" text-anchor="middle" fill="#8a8a8a">输出层</text>
+            <text x="115" y="30" font-size="9" text-anchor="middle" fill="#8a8a8a" font-family="monospace">W₁, b₁</text>
+            <text x="235" y="42" font-size="9" text-anchor="middle" fill="#8a8a8a" font-family="monospace">W₂, b₂</text>
+          </svg>
+        </div>
+        <p class="note">隐藏层把二维输入映射到新的表示空间，输出层再据此给出 0 或 1 的概率。</p>
+      </div>
+
+      <div class="card">
+        <h3>训练后的四组预测</h3>
+        <table>
+          <thead>
+            <tr><th>输入</th><th>目标</th><th>预测概率</th><th>分类</th></tr>
+          </thead>
+          <tbody id="predTable">
+            <tr><td class="mono">[0, 0]</td><td class="mono">0</td><td class="mono">0.038</td><td><span class="ok">正确</span></td></tr>
+            <tr><td class="mono">[0, 1]</td><td class="mono">1</td><td class="mono">0.956</td><td><span class="ok">正确</span></td></tr>
+            <tr><td class="mono">[1, 0]</td><td class="mono">1</td><td class="mono">0.955</td><td><span class="ok">正确</span></td></tr>
+            <tr><td class="mono">[1, 1]</td><td class="mono">0</td><td class="mono">0.058</td><td><span class="ok">正确</span></td></tr>
+          </tbody>
+        </table>
+        <p class="note">四个样本均分类正确，概率与目标类别一致。</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">02</div>
+      <div>
+        <h2>看见分类边界</h2>
+        <p>背景颜色表示模型输出概率；拖动滑块改变阈值，观察分类区域如何变化。</p>
+      </div>
+    </div>
+
+    <div class="canvas-box">
+      <div class="box-title">
+        <span>XOR 决策区域示意</span>
+        <button class="btn" id="retrain">重新播放训练</button>
+      </div>
+      <canvas id="boundary" width="820" height="440"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:#dfeee7"></i>类别 0 概率较高</span>
+        <span><i class="dot" style="background:#f3ddd7"></i>类别 1 概率较高</span>
+      </div>
+      <div class="slider-row">
+        <label for="thr">分类阈值</label>
+        <input type="range" id="thr" min="10" max="90" value="50">
+        <span class="val" id="thrVal">0.50</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">03</div>
+      <div>
+        <h2>参数如何学习</h2>
+        <p>下面是核心步骤：先计算预测，再把误差传回隐藏层更新参数。</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <pre><span class="cm"># 前向传播</span>
+hidden  = <span class="fn">sigmoid</span>(X @ W1 + b1)
+pred    = <span class="fn">sigmoid</span>(hidden @ W2 + b2)
+
+<span class="cm"># 反向传播</span>
+error      = pred - y
+grad_out   = error * pred * (1 - pred)
+error_hidden = grad_out @ W2.T
+grad_hidden  = error_hidden * hidden * (1 - hidden)
+
+<span class="cm"># 按学习率更新参数</span>
+W2 -= lr * (hidden.T @ grad_out) / len(X)
+W1 -= lr * (X.T @ grad_hidden) / len(X)</pre>
+
+      <div class="card">
+        <h3>本次作业完成了什么</h3>
+        <ul class="checklist">
+          <li>用 2 个输入节点、2 个隐藏节点和 1 个输出节点搭建 MLP</li>
+          <li>使用 Sigmoid 激活函数与反向传播更新参数</li>
+          <li>在 XOR 数据上完成训练，截图结果四类全对</li>
+          <li>用网页图示网络结构和非线性分类效果</li>
+        </ul>
+        <div class="quote">
+          说明：决策区域图由页面内的 MLP 实时计算后绘制，因此与截图中的静态示意图结构一致。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head">
+      <div class="sec-num">04</div>
+      <div>
+        <h2>一轮训练里发生了什么</h2>
+        <p>训练由四个反复循环的步骤组成，每次都让参数朝误差更小的方向挪动一点。</p>
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="idx">1</div>
+        <h4>前向计算</h4>
+        <p>当前权重把四个输入映射为四个 logits。</p>
+      </div>
+      <div class="step">
+        <div class="idx">2</div>
+        <h4>计算损失</h4>
+        <p>二元交叉熵衡量输出与目标之间的距离。</p>
+      </div>
+      <div class="step">
+        <div class="idx">3</div>
+        <h4>反向传播</h4>
+        <p>链式法则求出每个权重对损失的梯度。</p>
+      </div>
+      <div class="step">
+        <div class="idx">4</div>
+        <h4>Adam 更新</h4>
+        <p>结合梯度的一阶、二阶动量调整每个参数。</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>人工智能概论 · MLP 实验展示</span>
+    <span>隐藏层让 XOR 可分</span>
+  </footer>
+
+</div>
+
+<script>
+/* ---------- 训练一个 2-2-1 MLP 学习 XOR ---------- */
+const X = [[0,0],[0,1],[1,0],[1,1]];
+const Y = [0,1,1,0];
+
+let W1, b1, W2, b2, mW1, vW1, mW2, vW2, mb1, vb1, mb2, vb2, t;
+const LR = 0.5, STEPS = 3000;
+
+function randn(){ return (Math.random()-0.5)*1.6; }
+function sig(x){ return 1/(1+Math.exp(-x)); }
+
+function init(){
+  W1 = [[randn(),randn()],[randn(),randn()]];
+  b1 = [randn(),randn()];
+  W2 = [randn(),randn()];
+  b2 = randn();
+  mW1 = [[0,0],[0,0]]; vW1 = [[0,0],[0,0]];
+  mW2 = [0,0]; vW2 = [0,0];
+  mb1 = [0,0]; vb1 = [0,0];
+  mb2 = 0; vb2 = 0; t = 0;
+}
+
+function forward(x){
+  const h = [
+    sig(x[0]*W1[0][0] + x[1]*W1[1][0] + b1[0]),
+    sig(x[0]*W1[0][1] + x[1]*W1[1][1] + b1[1])
+  ];
+  const out = sig(h[0]*W2[0] + h[1]*W2[1] + b2);
+  return {h, out};
+}
+
+function trainStep(){
+  t++;
+  const beta1 = 0.9, beta2 = 0.999, eps = 1e-8;
+  const gW1 = [[0,0],[0,0]], gb1 = [0,0], gW2 = [0,0];
+  let gb2 = 0;
+
+  for(let i=0;i<X.length;i++){
+    const {h, out} = forward(X[i]);
+    const err = out - Y[i];
+    const gOut = err * out * (1-out);
+
+    const gHidden = [
+      gOut * W2[0] * h[0] * (1-h[0]),
+      gOut * W2[1] * h[1] * (1-h[1])
+    ];
+
+    gW1[0][0] += X[i][0]*gHidden[0];
+    gW1[1][0] += X[i][1]*gHidden[0];
+    gW1[0][1] += X[i][0]*gHidden[1];
+    gW1[1][1] += X[i][1]*gHidden[1];
+    gb1[0] += gHidden[0];
+    gb1[1] += gHidden[1];
+
+    gW2[0] += h[0]*gOut;
+    gW2[1] += h[1]*gOut;
+    gb2 += gOut;
+  }
+
+  const n = X.length;
+  const apply = (w, g, m, v, idx) => {
+    m[idx] = beta1*m[idx] + (1-beta1)*g;
+    v[idx] = beta2*v[idx] + (1-beta2)*g*g;
+    const mh = m[idx]/(1-Math.pow(beta1,t));
+    const vh = v[idx]/(1-Math.pow(beta2,t));
+    return w - LR*mh/(Math.sqrt(vh)+eps);
+  };
+
+  W1[0][0] = apply(W1[0][0], gW1[0][0]/n, mW1[0], vW1[0], 0);
+  W1[1][0] = apply(W1[1][0], gW1[1][0]/n, mW1[1], vW1[1], 1);
+  W1[0][1] = apply(W1[0][1], gW1[0][1]/n, mW1[0], vW1[0], 0);
+  W1[1][1] = apply(W1[1][1], gW1[1][1]/n, mW1[1], vW1[1], 1);
+  b1[0] = apply(b1[0], gb1[0]/n, mb1, vb1, 0);
+  b1[1] = apply(b1[1], gb1[1]/n, mb1, vb1, 1);
+  W2[0] = apply(W2[0], gW2[0]/n, mW2, vW2, 0);
+  W2[1] = apply(W2[1], gW2[1]/n, mW2, vW2, 1);
+  b2 = apply(b2, gb2/n, [mb2], [vb2], 0);
+}
+
+/* ---------- 绘制决策边界 ---------- */
+const cvs = document.getElementById('boundary');
+const ctx = cvs.getContext('2d');
+const thrInput = document.getElementById('thr');
+const thrVal = document.getElementById('thrVal');
+
+function drawBoundary(){
+  const W = cvs.width, H = cvs.height;
+  const thr = thrInput.value/100;
+  const cell = 8;
+
+  for(let py=0; py<H; py+=cell){
+    for(let px=0; px<W; px+=cell){
+      const x1 = px/(W-1);
+      const x2 = 1 - py/(H-1);
+      const {out} = forward([x1,x2]);
+      // 概率越高 -> 越红；越低 -> 越绿
+      const p = Math.min(1,Math.max(0,out));
+      const above = p >= thr;
+      let r,g,b;
+      if(above){
+        r = 243 - 20*p; g = 221 - 60*p; b = 215 - 60*p;
+      }else{
+        r = 223 - 30*(1-p); g = 238 - 20*(1-p); b = 231 - 20*(1-p);
+      }
+      ctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+      ctx.fillRect(px,py,cell,cell);
+    }
+  }
+
+  // 网格
+  ctx.strokeStyle = 'rgba(0,0,0,0.04)';
+  ctx.lineWidth = 1;
+  for(let i=0;i<=10;i++){
+    const x = i*W/10, y = i*H/10;
+    ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke();
+  }
+
+  // 四个样本点
+  const pts = [
+    {x:0,y:0,label:0},{x:1,y:0,label:1},
+    {x:0,y:1,label:1},{x:1,y:1,label:0}
+  ];
+  pts.forEach(p=>{
+    const cx = p.x*(W-1), cy = (1-p.y)*(H-1);
+    const pad = 26;
+    const px = Math.min(W-pad, Math.max(pad, cx));
+    const py = Math.min(H-pad, Math.max(pad, cy));
+    ctx.beginPath();
+    ctx.arc(px,py,13,0,Math.PI*2);
+    ctx.fillStyle = p.label===0 ? '#2f7d5c' : '#c8452f';
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(p.label, px, py+0.5);
+  });
+}
+
+/* ---------- 更新预测表 ---------- */
+function updateTable(){
+  const rows = document.querySelectorAll('#predTable tr');
+  X.forEach((x,i)=>{
+    const {out} = forward(x);
+    const prob = out;
+    const pred = prob >= 0.5 ? 1 : 0;
+    const cells = rows[i].children;
+    cells[2].textContent = prob.toFixed(3);
+    cells[3].innerHTML = pred === Y[i]
+      ? '<span class="ok">正确</span>'
+      : '<span class="bad">错误</span>';
+  });
+}
+
+/* ---------- 训练动画 ---------- */
+let raf = null, done = 0;
+
+function playTraining(){
+  if(raf) cancelAnimationFrame(raf);
+  init();
+  done = 0;
+  drawBoundary();
+  updateTable();
+
+  const chunk = 40;
+  function loop(){
+    for(let k=0;k<chunk && done<STEPS;k++){ trainStep(); done++; }
+    drawBoundary();
+    updateTable();
+    if(done < STEPS){ raf = requestAnimationFrame(loop); }
+  }
+  loop();
+}
+
+thrInput.addEventListener('input', ()=>{
+  thrVal.textContent = (thrInput.value/100).toFixed(2);
+  drawBoundary();
+});
+document.getElementById('retrain').addEventListener('click', playTraining);
+
+init();
+drawBoundary();
+updateTable();
+playTraining();
+</script>
+</body>
+</html>
